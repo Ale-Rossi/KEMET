@@ -15,11 +15,11 @@ from reframed import save_cbmodel
 # extra specs #
 ###############
 _ktest_formats = ["eggnog", "kaas", "kofamkoala"]
-_hmm_modes = ["onebm","modules","kos"]
+_hmm_modes = ["onebm", "modules", "kos"]
 _def_thr = 0.43 # threshold optimized from test datasets
-_gapfill_modes = ["existing","denovo"]
+_gapfill_modes = ["existing", "denovo"]
 _base_com_KEGGget = "curl --silent http://rest.kegg.jp/get/"
-# External dependencies base commands - experienced users can edit variables' with proper parameters e.g. to modify threads etc.
+# External dependencies base commands - experienced users can edit variables with proper parameters e.g. to modify threads etc.
 _base_com_mafft = "mafft --quiet --auto --thread -1 MSA_K_NUMBER.fna > K_NUMBER.msa"
 _base_com_hmmbuild = "hmmbuild --informat afa K_NUMBER.hmm K_NUMBER.msa > /dev/null"
 _base_com_nhmmer = "nhmmer --tblout K_NUMBER.hits K_NUMBER.hmm PATHFILE > /dev/null"
@@ -55,43 +55,38 @@ def eggnogXktest(eggnog_file, converted_output, KAnnotation_directory, ktests_di
     KOs = {}
 
     with open(eggnog_file) as g:
-        headers = g.readlines()[3].strip().split("\t")
-        koslice = 0
-        for field in headers:
-            if not field == "KEGG_ko":
-                koslice += 1
-            else:
-                break
-        g.seek(0)
-        for line in g.readlines():
-            if not line.startswith("#"): # skip header & info lines w/o genes
-                #fasta_id = line.strip().split("\t")[0]
-                egg_kos = line.strip().split("\t")[koslice].replace("ko:","")
-                if egg_kos != "":
-                    egg_kos_hits = egg_kos.split(",")
-                    for ko in egg_kos_hits:
-                        if not ko in KOs:
-                            KOs[ko] = 1
-                        else:
-                            KOs[ko] += 1
+        for linum, line in enumerate(g, 1):
+            if linum == 4:
+                fields = line.strip().split("\t")
+                koslice = fields.index("KEGG_ko")
+                
+            if line.startswith("#"):
+                continue
+        
+            egg_kos = line.strip().split("\t")[koslice].replace("ko:","")
+            
+            if egg_kos == "":
+                continue
+
+            for ko in egg_kos.split(","):
+                KOs.setdefault(ko, 0)
+                KOs[ko] += 1
 
             # POSSIBILITY: for each gene, correcting per diff. ortholog hits - if more KOs -> fraction of KO count
                         #if not ko in KOs:
                             #KOs[ko] = round(1/len(egg_kos_hits), 2)
                         #else:
                             #KOs[ko] += round(1/len(egg_kos_hits), 2)
-                else:
-                    pass
 
     try:
         os.chdir(ktests_directory)
     except:
         os.mkdir(ktests_directory)
         os.chdir(ktests_directory)
-    g = open(converted_output, "w")
-    for ko in KOs.keys():
-        g.write(ko+"\n")
-    g.close()
+    with open(converted_output, "w") as g:
+        for ko in KOs.keys():   # How about print(*KOs, file=g) ? Too cryptic?
+            print(ko, file=g)
+
 
     return converted_output, KOs
 
