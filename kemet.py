@@ -7,9 +7,8 @@ import re
 from multiprocessing import Pool
 from datetime import datetime
 import argparse
-import reframed
-from reframed import load_cbmodel
-from reframed import save_cbmodel
+from reframed import load_cbmodel, save_cbmodel
+
 
 ###############
 # extra specs #
@@ -2375,7 +2374,7 @@ def recap_addition(fasta_id, gapfill_report_directory, old_new_names_R):
     f.close()
 
 ########################################################################################
-if __name__ == "__main__":
+def main():
     import os
     import argparse
     from datetime import datetime
@@ -2693,3 +2692,6 @@ if __name__ == "__main__":
                 print(_timeinfo()+"END "+fasta_id+"\n")
                 if LOGflag:
                     logging.info('END '+fasta_id+'\n')
+
+if __name__ == "__main__":
+    main()
