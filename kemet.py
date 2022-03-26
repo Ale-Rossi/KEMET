@@ -1389,7 +1389,7 @@ def build_de_novo_GSMM(FASTA, fasta_genome, de_novo_model_directory, current_run
     if not path.isdir("dmnd_intermediates"):
         os.mkdir("dmnd_intermediates")
     carveme_cmd = f"carve ./proteins/{fasta_id}.faa --fbc2 -u {metabolic_universe} -o FASTA.xml 2> /dev/null"
-    print(_timeinfo(), "START CarveMe command for "+FASTA, sep="\t)
+    print(_timeinfo(), "START CarveMe command for "+FASTA, sep="\t")
     if log:
         logging.info('START CarveMe command for '+FASTA)
     os.system(carveme_cmd)
