@@ -3,6 +3,7 @@
 
 # Imports
 import os
+from os import path
 import re
 from multiprocessing import Pool
 from datetime import datetime
@@ -31,7 +32,7 @@ def _timeinfo():
     Returns:
     timeinfo        (str): present date and time, up to seconds
     """
-    timeinfo = str(datetime.now().strftime("%Y-%m-%d %H-%M-%S"))+"\t"
+    timeinfo = datetime.now().strftime("%Y-%m-%d %H-%M-%S")+"\t" #TODO elimina la tab
     return timeinfo
 
 # KMC-functions
@@ -58,7 +59,8 @@ def eggnogXktest(eggnog_file, converted_output, KAnnotation_directory, ktests_di
             if linum == 4:
                 fields = line.strip().split("\t")
                 koslice = fields.index("KEGG_ko")
-                
+                continue
+
             if line.startswith("#"):
                 continue
         
@@ -77,17 +79,15 @@ def eggnogXktest(eggnog_file, converted_output, KAnnotation_directory, ktests_di
                         #else:
                             #KOs[ko] += round(1/len(egg_kos_hits), 2)
 
-    try:
-        os.chdir(ktests_directory)
-    except:
+    if not path.isdir(ktests_directory):
         os.mkdir(ktests_directory)
-        os.chdir(ktests_directory)
-    with open(converted_output, "w") as g:
+    
+    with open(path.join(ktests_directory, converted_output), "w") as g:
         for ko in KOs.keys():   # How about print(*KOs, file=g) ? Too cryptic?
             print(ko, file=g)
 
-
     return converted_output, KOs
+
 
 def KAASXktest(file_kaas, converted_output, KAnnotation_directory, ktests_directory):
     """
@@ -114,16 +114,16 @@ def KAASXktest(file_kaas, converted_output, KAnnotation_directory, ktests_direct
                     KOs.append(line_s[1])
             elif len(line_s) == 1:
                 continue
-    try:
-        os.chdir(ktests_directory)
-    except:
+
+    if not path.isdir(ktests_directory):
         os.mkdir(ktests_directory)
-        os.chdir(ktests_directory)
-    g = open(converted_output, "w")
-    for ko in KOs:
-        g.write(ko+"\n")
-    g.close()
+    
+    with open(path.join(ktests_directory, converted_output), "w") as g:
+        for ko in KOs:
+            print(ko, file=g)
+
     return converted_output, KOs
+
 
 def kofamXktest(kofamkoala_file, converted_output, KAnnotation_directory, ktests_directory):
     """
@@ -153,23 +153,18 @@ def kofamXktest(kofamkoala_file, converted_output, KAnnotation_directory, ktests
         for line in g.readlines()[2:]: # skip header and spacer lines w/o genes
             fasta_id = line[:fastaslice].strip().replace("* ","")
             kofam_ko = line[fastaslice:koslice].strip()
-            if kofam_ko != "":
-                if not kofam_ko in KOs:
-                    KOs[kofam_ko] = 1
-                else:
-                    KOs[kofam_ko] += 1
-
-            else:
-                pass
-    try:
-        os.chdir(ktests_directory)
-    except:
+            if kofam_ko == "":
+                continue
+            KOs.setdefault(kofam_ko, 0)
+            KOs[kofam_ko] += 1
+    
+    if not path.isdir(ktests_directory):
         os.mkdir(ktests_directory)
-        os.chdir(ktests_directory)
-    g = open(converted_output, "w")
-    for ko in KOs.keys():
-        g.write(ko+"\n")
-    g.close()
+
+    with open(path.join(ktests_directory, converted_output), "w") as g:
+        for ko in KOs.keys():
+            print(ko, file=g)
+
     return converted_output, KOs
 
 def create_KO_list(file_ko_list, ktests_directory):
@@ -186,12 +181,11 @@ def create_KO_list(file_ko_list, ktests_directory):
     os.chdir(ktests_directory)
     ko_list = []
     with open(file_ko_list) as f:
-        for line in f.readlines():
-            line_s = line.strip()
-            ko_list.append(line_s)
+        ko_list = [ line.strip() for line in f ]
+
     return ko_list
 
-def testcompleteness(ko_list, kk_file, kkfiles_directory, report_txt_directory, file_output, cutoff = 0):
+def testcompleteness(ko_list, kk_file, kkfiles_directory, report_txt_directory, file_output, cutoff=0):
     """
     Computes KEGG Modules completeness from KO pre-annotation.
     Reports that in a flat-file,
@@ -753,7 +747,7 @@ def write_KOs_from_fixed_list(fasta_id, fixed_ko_file, ktests_directory, klists_
             g.close()
     os.chdir(report_txt_directory)
 
-def taxonomy_filter(taxonomy, dir_base, taxa_file, taxa_dir, update = False):
+def taxonomy_filter(taxonomy, dir_base, taxa_file, taxa_dir, update=False):
     """
     Generates a file that includes KEGG Brite species codes (E-level)
     for a given C-level (phylum, most of the times) taxonomy indication.
@@ -816,12 +810,11 @@ def download_ntseq_of_KO(klist_file, dir_base_KO, dir_KO, klists_directory, taxa
         taxa_file           (str): ".keg" output file, that contains each codes of species allowed for subsequent GENES download
         base_com_KEGGget    (str): base command of KEGG API "GET" function - which is modified for each entry of GENES
     """
-    print(_timeinfo()+"START download nucleotidic sequences")
+    print(_timeinfo(), "START download nucleotidic sequences", sep="\t")
     os.chdir(taxa_dir)
-    taxa_allow = []
+
     with open(taxa_file) as f:
-        for line in f.readlines():
-            taxa_allow.append(line.strip())
+        taxa_allow = [ line.strip() for line in f ]
 
     os.chdir(klists_directory)
     with open(klist_file) as f:
@@ -831,11 +824,10 @@ def download_ntseq_of_KO(klist_file, dir_base_KO, dir_KO, klists_directory, taxa
         os.chdir(dir_KO)
         for line in f.readlines():
             line = line.strip()
-            flatfile = str(line)+".keg"
-            cmd_dir = "mkdir "+line
+            flatfile = line+".keg"
             os.chdir(dir_KO)
-            if not os.path.exists(dir_KO+line):
-                os.system(cmd_dir)
+            if not path.exists(dir_KO+line):
+                os.mkdir(dir_KO+line)
             else:
                 continue
             os.chdir(line)
@@ -850,7 +842,7 @@ def download_ntseq_of_KO(klist_file, dir_base_KO, dir_KO, klists_directory, taxa
                 with Pool(processes=3) as p:
                     p.map(getntseq, genes)
                 p.close()
-    print(_timeinfo()+"COMPLETE download nucleotidic sequences")
+    print(_timeinfo(), "COMPLETE download nucleotidic sequences", sep="\t")
 
 def parsekoflat(file):
     """
@@ -903,16 +895,16 @@ def getntseq(gene):
     Returns:
         True       (bool): only necessary for script continuation
     """
-    gene_name = gene
-    stop = gene_name.find(":")
-    gene_taxa = gene_name[:stop]
+
+    stop = gene.find(":")
+    gene_taxa = gene[:stop]
 
     if gene_taxa in taxa_allow:
-        cmd_get_ntseq = base_com_KEGGget+gene_name+"/ntseq"
-        os.system(cmd_get_ntseq+" > "+gene_name+".fna")
+        cmd_get_ntseq = base_com_KEGGget+gene+"/ntseq"
+        os.system(cmd_get_ntseq+" > "+gene+".fna")
         return 1
 
-def filter_and_allign(taxa_dir, taxa_file, fasta_id, klist_file, klists_directory, msa_dir, dir_KO):
+def filter_and_align(taxa_dir, taxa_file, fasta_id, klist_file, klists_directory, msa_dir, dir_KO):
     """
     Generates a nucleotidic multifasta with sequences from the given taxonomy range.
     The output does NOT contain redundant sequences.
@@ -927,13 +919,12 @@ def filter_and_allign(taxa_dir, taxa_file, fasta_id, klist_file, klists_director
         msa_dir             (str): ".fna" nt multifasta (single representative sequences) output folder path
         dir_KO              (str): KEGG KO GENES sequences folder path, with taxonomic scope indicated in the command-line input
     """
-    print(_timeinfo()+"START sequences filtering and allignment")
+    print(_timeinfo(), "START sequences filtering and alignment", sep="\t")
     ### filter for taxa of interest
     os.chdir(taxa_dir)
-    taxa_allow = []
+
     with open(taxa_file) as f:
-        for line in f.readlines():
-            taxa_allow.append(line.strip())
+        taxa_allow = [ line.strip() for line in f ]
 
     os.chdir(msa_dir)
     if not fasta_id in os.listdir():
@@ -949,7 +940,7 @@ def filter_and_allign(taxa_dir, taxa_file, fasta_id, klist_file, klists_director
 
     os.chdir(dir_KO)
     for K in os.listdir():
-        if not K in KO_to_align:
+        if K not in KO_to_align:
             continue
     # dictionary of non-redundant nt sequences (100% identity)
     # in order not to overvalue species with different strains in KEGG taxonomy
@@ -958,32 +949,34 @@ def filter_and_allign(taxa_dir, taxa_file, fasta_id, klist_file, klists_director
         sequniq = {} # {sequence : tax_code_of_identical_seqs}
         for nt_file in os.listdir():
             code = nt_file.split(":")[0]
-            if not code in taxa_allow:
+            if code not in taxa_allow:
                 continue
     ### exclude redundant nt sequences
             with open(nt_file) as f:
                 seq = f.readlines()[1:]
                 seq1 = "".join(seq).replace("\n","")
 
-                if not seq1 in sequniq.keys():
-                    vett = [nt_file]
-                    sequniq.update({seq1:vett})
-                else:
-                    vett = sequniq[seq1]
-                    vett.append(nt_file)
-                    sequniq.update({seq1:vett})
+                sequniq.setdefault(seq1, [])
+                sequniq[seq1].append(nt_file)
+                # The two previous lines should replace the following ones. Not sure because there might be some implications with the .update()??
+                #if not seq1 in sequniq.keys():
+                #    vett = [nt_file]
+                #    sequniq.update({seq1:vett})
+                #else:
+                #    vett = sequniq[seq1]
+                #    vett.append(nt_file)
+                #    sequniq.update({seq1:vett})
     ### Write a multiple sequence fasta
         os.chdir(msa_dir+fasta_id)
         if not K in os.listdir():
             os.mkdir(K)
         os.chdir(msa_dir+fasta_id+"/"+K)
-        f = open("MSA_"+K+".fna", "a")
-        for key, value in sequniq.items():
-            f.write(">"+str(value[0][:-4])+"\n")
-            f.write(key+"\n")
-        f.close()
+        with open(f"MSA_{K}.fna", "a") as f:
+            for key, value in sequniq.items():
+                f.write(">"+str(value[0][:-4])+"\n")
+                f.write(key+"\n")
         os.chdir(dir_KO)
-    print(_timeinfo()+"COMPLETE Filter and allign")
+    print(_timeinfo(), "COMPLETE Filter and align", sep="\t")
 
 def MSA_and_HMM(msa_dir_comm, base_com_mafft, base_com_hmmbuild, log=False):
     """
@@ -996,7 +989,7 @@ def MSA_and_HMM(msa_dir_comm, base_com_mafft, base_com_hmmbuild, log=False):
         base_com_hmmbuild               (str): base command for "hmmbuild" execution - modified for each entry of GENES (KO)
         log                  (bool, optional): keep execution times in a log file (if specified in command-line args). Defaults to False.
     """
-    print(_timeinfo()+"START MSA and HMMs creation")
+    print(_timeinfo(), "START MSA and HMMs creation", sep="\t")
     os.chdir(msa_dir_comm)
     for K in os.listdir():
         os.chdir(K)
@@ -1009,7 +1002,7 @@ def MSA_and_HMM(msa_dir_comm, base_com_mafft, base_com_hmmbuild, log=False):
         if log==True:
             logging.info('COMPLETE hmmbuild execution')
         os.chdir(msa_dir_comm)
-    print(_timeinfo()+"COMPLETE MSA and HMM creation")
+    print(_timeinfo(), "COMPLETE MSA and HMM creation", sep="\t")
 
 def nhmmer_for_genome(fasta_genome, msa_dir_comm, base_com_nhmmer):
     """
@@ -1021,14 +1014,14 @@ def nhmmer_for_genome(fasta_genome, msa_dir_comm, base_com_nhmmer):
         msa_dir_comm        (str): nt multi-fasta folder path, as modified for the MAG/Genome of interest
         base_com_nhmmer     (str): base command for "nhmmer" execution - modified for each entry of GENES (KO)
     """
-    print(_timeinfo()+"START nhmmer search")
+    print(_timeinfo(), "START nhmmer search", sep="\t")
     os.chdir(msa_dir_comm)
     for K in os.listdir():
         os.chdir(K)
         ch_com_nhmmer = base_com_nhmmer.replace("K_NUMBER", K).replace("PATHFILE", fasta_genome)
         os.system(ch_com_nhmmer)
         os.chdir(msa_dir_comm)
-    print(_timeinfo()+"COMPLETE nhmmer")
+    print(_timeinfo(), "COMPLETE nhmmer", sep="\t")
 
 def move_HMM_and_clean(hmm_dir_comm, msa_dir_comm):
     """
@@ -1040,7 +1033,7 @@ def move_HMM_and_clean(hmm_dir_comm, msa_dir_comm):
         msa_dir_comm    (str): nt multi-fasta folder path, as modified for the MAG/Genome of interest
     """
     os.chdir(hmm_dir)
-    if not os.path.exists(hmm_dir_comm):
+    if not path.isdir(hmm_dir_comm):
         os.mkdir(hmm_dir_comm)
     os.chdir(msa_dir_comm)
     K_numbers = os.listdir()
@@ -1055,7 +1048,7 @@ def move_HMM_and_clean(hmm_dir_comm, msa_dir_comm):
                 os.replace(msa_dir_comm+K+"/"+hmm_file, hmm_dir_comm+K+"/"+hmm_file)
             if file.endswith(".fna"):
                 os.remove(file)
-    print(_timeinfo()+"COMPLETE move HMM and clean")
+    print(_timeinfo(), "COMPLETE move HMM and clean", sep="\t")
 
 def movebackHMM(hmm_dir_comm, msa_dir_comm):
     """
@@ -1076,7 +1069,7 @@ def movebackHMM(hmm_dir_comm, msa_dir_comm):
             if file.endswith(".hmm"):
                 hmm_file = file
                 os.replace(hmm_dir_comm+K+"/"+hmm_file, msa_dir_comm+K+"/"+hmm_file)
-    print(_timeinfo()+"COMPLETE move back HMM")
+    print(_timeinfo(), "COMPLETE move back HMM", sep="\t")
 
 def nhmmer_significant_hits_corr(fasta_id, hmm_dir_comm, threshold= 100, corr_threshold= _def_thr, evalue_threshold = float(1e-30)):
     """
@@ -1100,9 +1093,10 @@ def nhmmer_significant_hits_corr(fasta_id, hmm_dir_comm, threshold= 100, corr_th
     os.chdir(hmm_dir_comm)
     sig_hits = {}
 
-    g = open(fasta_id+"_HMM_hits.txt","a")
-    g.write("K\tcorr_score,evalue\tfragment\tstrand\tl_bound\tr_bound\tp_lenght\thmmfrom\thmmto\n")
-    g.close()
+    with open(f"{fasta_id}_HMM_hits.txt", "a") as g:
+        print("K", "corr_score,evalue", "fragment", "strand",
+              "l_bound", "r_bound", "p_lenght", "hmmfrom",
+              "hmmto", sep="\t", file=g)
 
     for directory in sorted(os.listdir()):
         if directory.startswith("K"):
@@ -1136,13 +1130,13 @@ def nhmmer_significant_hits_corr(fasta_id, hmm_dir_comm, threshold= 100, corr_th
                     if corr_score > corr_threshold and float(score) > threshold: # could also be unified with evalue_threshold
                         sig_hits.update({K:[fragment,strand,bounds]})
                         os.chdir(hmm_dir_comm)
-                        g = open(fasta_id+"_HMM_hits.txt","a")
-                        g.write(K+"\t"+str(corr_score)+","+str(evalue)+"\t"+fragment+"\t"+strand+"\t"+str(left_bound-1)+"\t"+str(right_bound-1)+"\t"+str(profile_lenght)+"\t"+str(hmmfrom-1)+"\t"+str(hmmto-1)+"\n")
-                        g.close()
+                        with open(f"{fasta_id}_HMM_hits.txt", "a") as g:
+                            g.write(K+"\t"+str(corr_score)+","+str(evalue)+"\t"+fragment+"\t"+strand+"\t"+str(left_bound-1)+"\t"+str(right_bound-1)+"\t"+str(profile_lenght)+"\t"+str(hmmfrom-1)+"\t"+str(hmmto-1)+"\n")
+
                 os.chdir(hmm_dir_comm)
 
     os.rename(hmm_dir_comm+fasta_id+"_HMM_hits.txt",hmm_hits_dir+fasta_id+"_HMM_hits.txt")
-    print(_timeinfo()+"COMPLETE nhmmer significant hits")
+    print(_timeinfo(), "COMPLETE nhmmer significant hits", sep="\t")
     return sig_hits
 
 def HMM_hits_sequences(hmm_hits_dir, dir_genomes):
@@ -1227,12 +1221,10 @@ def HMM_hits_sequences(hmm_hits_dir, dir_genomes):
     #### different treatment for hits in "+" & "-" strands
     #### do not include hits with "N", resulting e.g. from scaffold placeholders
                 if strand == "+":
-                    strand_plus = True
-                if strand_plus == True:
                     SEQUENCE = fragment_w_hit[l_bound:r_bound]
                     if not "N" in SEQUENCE and not "n" in SEQUENCE:
                         HMM_hits_dict.update({">"+genome+"_"+K:SEQUENCE})
-                elif strand_plus == False:
+                else:
                     SEQUENCE_pre = fragment_w_hit[r_bound:l_bound]
                     pre = "ACTG"
                     post = "TGAC"
@@ -1281,9 +1273,9 @@ def HMM_hits_translated_sequences(HMM_hits_dict):
         ntseq1 = seq.upper()
         ntseq2 = seq[1:].upper()
         ntseq3 = seq[2:].upper()
-        fasta1 = fasta_id+"__f1"
-        fasta2 = fasta_id+"__f2"
-        fasta3 = fasta_id+"__f3"
+        fasta1 = fasta_id + "__f1"
+        fasta2 = fasta_id + "__f2"
+        fasta3 = fasta_id + "__f3"
         aaseq1 = ""
         aaseq2 = ""
         aaseq3 = ""
@@ -1331,20 +1323,18 @@ def HMM_hits_longest_translated_sequences(HMM_hits_dict, HMM_hits_TRANSLATED_dic
                                                 keys: ">MAG/Genome+KO+frame_indication"
                                                 values: "aa sequence" - only the longest without stop codons (*)
     """
-    max_len_dict = {}
-    for fasta_nf in HMM_hits_dict.keys():
-        max_len_dict.update({fasta_nf:[]})
+    max_len_dict = { fasta_nf: [] for fasta_nf in HMM_hits_dict }
 
     HMM_hits_TRANSLATED_MAXLEN_dict = {}
 
     for fasta_id, seq in HMM_hits_TRANSLATED_dict.items():
         fasta_nf = fasta_id.split("__")[0]
         seq = seq.split("*")                   # divided by stop codons
-        seq_max = max(seq, key = len)          # longer for single reading frame
+        seq_max = max(seq, key=len)          # longer for single reading frame
         max_len_dict[fasta_nf].append(seq_max) # add the longest to list
 
-    for fasta_nf in max_len_dict.keys():
-        seq_max_allframes = max(max_len_dict[fasta_nf], key = len)
+    for fasta_nf in max_len_dict:
+        seq_max_allframes = max(max_len_dict[fasta_nf], key=len)
         frame = "__f"+str(max_len_dict[fasta_nf].index(seq_max_allframes)+1)
         HMM_hits_TRANSLATED_MAXLEN_dict.update({fasta_nf+frame:seq_max_allframes})
 
@@ -1364,33 +1354,34 @@ def recap_hits_corr(fasta_id, hmm_hits_dir, HMM_hits_dict, HMM_hits_longestTRANS
     """
     os.chdir(hmm_hits_dir)
     current_run = "KEMET_run_"+run_start
-    if not current_run in os.listdir():
+    if not path.isdir(current_run):
         os.mkdir(current_run)
     os.chdir(current_run)
-    f = open("file_recap_"+run_start+".tsv", "a")
-    header = "MAG\tKO\tcorr_score,evalue\tfragment\tstrand\tl_bound\tr_bound\tp_lenght\thmmfrom\thmmto\tframe\tseq\txseq\n"
-    if f.tell() == 0: 
-        f.write(header)
+    with open(f"file_recap_{run_start}.tsv", "a") as f:
+        if f.tell() == 0:
+            print("MAG", "KO", "corr_score,evalue", "fragment", "strand",
+                  "l_bound", "r_bound", "p_lenght", "hmmfrom", "hmmto",
+                  "frame", "seq", "xseq", sep="\t", file=f)
 
-    os.chdir(hmm_hits_dir)
-    for file in sorted(os.listdir()):
-        if file.endswith(".txt") and fasta_id in file:
-            with open(file) as g:
-                for line in g.readlines()[1:]:
-                    KO = line.strip().split("\t")[0]
-                    for hit in HMM_hits_dict.keys():
-                        if hit.startswith(">"+file[:-13]+"_"+KO): ###
-                            seq = HMM_hits_dict[hit].upper()
-                            break
-                    for hit in HMM_hits_longestTRANSLATED_dict.keys():
-                        if hit.startswith(">"+file[:-13]+"_"+KO): ###
-                            frame = hit[-1]
-                            xseq = HMM_hits_longestTRANSLATED_dict[hit]
-                            break
-                    os.chdir(current_run)
-                    f.write(file[:-13]+"\t"+line.strip()+"\t"+frame+"\t"+seq+"\t"+xseq+"\n")
-                    os.chdir(hmm_hits_dir)
-    f.close()
+        os.chdir(hmm_hits_dir)
+        for file in sorted(os.listdir()):
+            if file.endswith(".txt") and fasta_id in file:
+                with open(file) as g:
+                    for line in g.readlines()[1:]:
+                        KO = line.strip().split("\t")[0]
+                        for hit in HMM_hits_dict.keys():
+                            if hit.startswith(">"+file[:-13]+"_"+KO): ###
+                                seq = HMM_hits_dict[hit].upper()
+                                break
+                        for hit in HMM_hits_longestTRANSLATED_dict.keys():
+                            if hit.startswith(">"+file[:-13]+"_"+KO): ###
+                                frame = hit[-1]
+                                xseq = HMM_hits_longestTRANSLATED_dict[hit]
+                                break
+                        os.chdir(current_run)
+                        f.write(file[:-13]+"\t"+line.strip()+"\t"+frame+"\t"+seq+"\t"+xseq+"\n")
+                        os.chdir(hmm_hits_dir)
+
 
 def build_de_novo_GSMM(FASTA, fasta_genome, de_novo_model_directory, current_run, log=False):
     """
@@ -1422,35 +1413,32 @@ def build_de_novo_GSMM(FASTA, fasta_genome, de_novo_model_directory, current_run
 
     # launch prodigal gene calling - default:QUIET
     os.chdir(de_novo_model_directory)
-    if not "proteins" in os.listdir():
+    if not path.isdir("proteins"):
         os.mkdir("proteins")
-    prodigal_cmd = "prodigal -i fasta_genome -a ./proteins/FASTA.faa -q -m > /dev/null"
-    prodigal_cmd_mod = prodigal_cmd.replace("fasta_genome",fasta_genome).replace("FASTA",fasta_id)
+    prodigal_cmd = f"prodigal -i {fasta_genome} -a ./proteins/{fasta_id}.faa -q -m > /dev/null"
     os.system(prodigal_cmd_mod)
-    print(_timeinfo()+"COMPLETE Prodigal command for "+FASTA)
-    if log == True:
-        logging.info('COMPLETE Prodigal command for '+FASTA)
+    print(_timeinfo(), f"COMPLETE Prodigal command for {FASTA}", sep="\t")
+    if log:
+        logging.info(f"COMPLETE Prodigal command for {FASTA}")
 
     # ADD HMM-hits
     os.chdir(de_novo_model_directory+"proteins")
-    f = open(fasta_id+".faa", "a")
-    for ko, xseq in HMM_HITS.items():
-        f.write(ko+"\n")
-        f.write(xseq+"\n")
-    f.close()
+    with open(fasta_id+".faa", "a") as f:
+        for ko, xseq in HMM_HITS.items():
+            print(ko, file=f)
+            print(xseq, file=f)
     os.chdir(de_novo_model_directory)
 
     # GENERATE CARVEME MODEL - default:QUIET
-    if not "dmnd_intermediates" in os.listdir():
+    if not path.isdir("dmnd_intermediates"):
         os.mkdir("dmnd_intermediates")
-    carveme_cmd = "carve ./proteins/FASTA.faa --fbc2 -u universe -o FASTA.xml 2> /dev/null"
-    carveme_cmd_mod = carveme_cmd.replace("FASTA",fasta_id).replace("universe",metabolic_universe)
-    print(_timeinfo()+"START CarveMe command for "+FASTA)
-    if log == True:
+    carveme_cmd = f"carve ./proteins/{fasta_id}.faa --fbc2 -u {metabolic_universe} -o FASTA.xml 2> /dev/null"
+    print(_timeinfo(), "START CarveMe command for "+FASTA, sep="\t)
+    if log:
         logging.info('START CarveMe command for '+FASTA)
-    os.system(carveme_cmd_mod)
-    print(_timeinfo()+"COMPLETE CarveMe command for "+FASTA)
-    if log == True:
+    os.system(carveme_cmd)
+    print(_timeinfo(), "COMPLETE CarveMe command for "+FASTA, sep="\t")
+    if log:
         logging.info('COMPLETE CarveMe command for '+FASTA)
 
     os.chdir(de_novo_model_directory+"/proteins/")
@@ -1516,8 +1504,6 @@ def searchKeggShort(list_all_mod, Modules_directory, knumber):
                 if knumber in singledef:
                     hits.append(name[:6])
                     break
-                else:
-                    continue
             else:
                 continue
         elif len(manydefinitions) == 0:
@@ -1573,7 +1559,6 @@ def knum4reac_mod(file):
                     prior_reaction = str(dictionary_knumber_reac[knum_element])
                     new_reaction = prior_reaction+","+reaction
                     dictionary_knumber_reac.update({knum_element:new_reaction})
-    f.close()
 
     return dictionary_knumber_reac
 
@@ -1615,7 +1600,7 @@ def KEGG_BiGG_SEED_RN_dict(reactions_DB, DB_directory, ontology = "BiGG"):
             dict_rxn_x_bigg = {}
             #only non-redundant KEGG RN entry x reaction/line
             for a in non_empty_kegg_ids:
-                if not a in unique_kegg_ids:
+                if a not in unique_kegg_ids:
                     unique_kegg_ids.append(a)
 
             #only non-redundant BiGG entry x reaction/line
@@ -1640,7 +1625,7 @@ def KEGG_BiGG_SEED_RN_dict(reactions_DB, DB_directory, ontology = "BiGG"):
         # {KEGG : [rxns]}
             #for each KEGG RN, create-update a non-redundant dict-entry
             for Kegg in unique_kegg_ids:
-                if not Kegg in dict_kegg_x_seed.keys():
+                if not Kegg in dict_kegg_x_seed:
                     vett_dict_rxn_seed=[]
                     vett_dict_rxn_seed.append(rxn)
                     dict_kegg_x_seed.update({Kegg:vett_dict_rxn_seed})
@@ -1734,24 +1719,16 @@ def bigg_gapfill_absent_in_model(bigg_nonredundant_file, model):
         bigg_gapfill_absent_in_model       (list): Python-list object including unique BiGG reaction,
                                                     not present in the input ".xml" genome-scale model
     """
-    biggreactions_names = []
-    putative_gapfill = []
     bigg_gapfill_absent_in_model = []
 
-    for reaction in model.reactions.keys():
-        if reaction == 'Growth' or reaction == 'R_ATPM':
-            continue
-        nome_bigg = reaction[2:]
-        biggreactions_names.append(nome_bigg)
+    biggreactions_names = [ reaction[2:] for reaction in model.reactions.keys()
+                            if reaction not in ("Growth", "R_ATPM") ]
 
     with open(bigg_nonredundant_file) as f:
-        for line in f.readlines():
-            line_s = line.strip()
-            putative_gapfill.append(line_s)
+        putative_gapfill = [ line.strip() for line in f ]
 
-    for bigg1 in putative_gapfill:
-        if not bigg1 in biggreactions_names:
-            bigg_gapfill_absent_in_model.append(bigg1)
+    bigg_gapfill_absent_in_model = [ bigg1 for bigg1 in putative_gapfill
+                                     if bigg1 not in biggreactions_names ]
 
     return bigg_gapfill_absent_in_model
 
@@ -1775,7 +1752,7 @@ def curl_bigg_reaction(single_reac):
 
     return file_ift
 
-def api_file_reorder(file_ift, verbose = False):
+def api_file_reorder(file_ift, verbose=False):
     """
     Helper function to clean and reorganize info from
     intermediate files, containing reaction strings.
@@ -1801,7 +1778,7 @@ def api_file_reorder(file_ift, verbose = False):
                 print("Info from file "+file_ift+" reordered")
     return
 
-def api_file_reorder2(file_ift, verbose = False):
+def api_file_reorder2(file_ift, verbose=False):
     """
     Helper function #2 to clean and reorganize info from
     intermediate files, containing reaction strings.
@@ -1819,13 +1796,12 @@ def api_file_reorder2(file_ift, verbose = False):
         #text cleaning
             text2 = text.replace(",", ",\n").replace(":",":\t").replace("&#8652;","<->")
             file_txt = str(file_ift).replace(".ift", ".txt")
-            g = open(file_txt, "w")
-            g.write(text2)
-            g.close()
+            with open(file_txt, "w") as g:
+                g.write(text2)
             os.system("rm "+file_ift)
 
             if verbose:
-                print("Info from file "+file_ift+" reordered")
+                print(f"Info from file {file_ift} reordered")
 
     return file_txt
 
@@ -1878,7 +1854,7 @@ def get_string(file_txt, total_strings, verbose = False, remove_intermediate = T
     if remove_intermediate:
         os.system("rm "+file_txt)
 
-def get_string_error(file_txt, error_strings, verbose = False):
+def get_string_error(file_txt, error_strings, verbose=False):
     """
     Helper function to extract reaction strings that lead to
     reaction addition errors (i.e. not found in BiGG).
@@ -1934,7 +1910,7 @@ def retry_genes(file_txt, verbose = False):
         v = f.readline().replace(",","\n")
         new_single_reac = v.split('reactions": [{"bigg_id": "')[1].split('"\n')[0]
     new_ift = curl_bigg_reaction(new_single_reac)
-    new_txt = api_file_reorder2(new_ift, verbose = verbose)
+    new_txt = api_file_reorder2(new_ift, verbose=verbose)
     try:
         get_string(new_txt, total_strings, verbose = verbose)
         error_strings.remove(file_txt)
@@ -1962,7 +1938,7 @@ def metab_change_names(model_new, verbose = False):
 
     if verbose:
         print(str(len(comm_list))+" commands used for METABOLITES name updates") #debug
-    return
+
 
 def check_name_changes(model_new):
     """
@@ -1973,18 +1949,15 @@ def check_name_changes(model_new):
     Args:
         model_new   (CBModel): Python-object copy of an existing ".xml" model, as generated via Reframed
     """
-    unchanged=[]
+
     for x in model_new.metabolites.values():
         if str(x).startswith("M_"):
-            unchanged.append(x)
+            print("ATTENTION Not all METABOLITES names were updated")
+            return
+    print("All METABOLITES names were updated")
 
-    if len(unchanged) == 0:
-        result = "All METABOLITES names were updated"
-    if len(unchanged) != 0:
-        result = "ATTENTION Not all METABOLITES names were updated"
-    print(result)
 
-def reac_change_names(model_new, verbose = False):
+def reac_change_names(model_new, verbose=False):
     """
     Helper function to find the exact reaction names
     and replace the ones added in the new model via "get_string()".
@@ -2031,8 +2004,7 @@ def old_new_names_dict(file):
         for line in f.readlines():
             line = line.strip().split("\t")
             try:
-                old = str(line[0])
-                new = str(line[1])
+                old, new = line[0], line[1]
                 old_new_names.update({old:new})
             except:
                 continue
@@ -2056,8 +2028,7 @@ def old_new_names_reac_dict(file):
         for line in f.readlines():
             line = line.strip().split("\t")
             try:
-                old = str(line[0])
-                new = str(line[1])
+                old, new = line[0], line[1]
                 old_new_names_R.update({old:new})
             except:
                 continue
@@ -2079,10 +2050,10 @@ def fixed_modules_of_interest(dir_base, fixed_module_file):
 
     os.chdir(dir_base)
     with open(fixed_module_file) as f:
-        for line in f.readlines():
-            MOD = line.strip()
-            MODofinterest.append(MOD)
+        MODofinterest = [ line.strip() for line in f ]
+
     return MODofinterest
+
 
 def onbm_modules_of_interest(fasta_id, oneBM_modules_dir):
     """
@@ -2101,10 +2072,9 @@ def onbm_modules_of_interest(fasta_id, oneBM_modules_dir):
     os.chdir(oneBM_modules_dir)
     if fasta_id+"_"+fixed_module_file in os.listdir():
         with open(fasta_id+"_"+fixed_module_file) as f:
-            for line in f.readlines():
-                MOD = line.strip()
-                MODofinterest.append(MOD)
+            MODofinterest = [ line.strip() for line in f ]
     return MODofinterest
+
 
 def KOs_with_HMM_hits(hmm_hits_dir, fastakohits):
     """
@@ -2146,10 +2116,10 @@ def Modules_KOhits_connection(KOhits, MODofinterest):
             continue
         Modules = searchKeggShort(list_all_mod, Modules_directory, KO)
         for module in Modules:
-            if not module in MODofinterest:
+            if module not in MODofinterest:
                 continue
         # if KO is present in one of the modules of interest
-            if not module in MODofinterestXKOhits.keys():
+            if module not in MODofinterestXKOhits.keys():
                 vett_KOmiss = []
                 vett_KOmiss.append(KO)
                 MODofinterestXKOhits.update({module:vett_KOmiss})
@@ -2223,10 +2193,9 @@ def log_bigg_nr(bigg_nonredundant, fasta_id, gapfill_report_directory):
         gapfill_report_directory    (str): output folder path
     """
     os.chdir(gapfill_report_directory)
-    f = open("bigg_log_"+fasta_id+".txt", "w")
-    for single_bigg in bigg_nonredundant:
-        f.write(single_bigg+"\n")
-    f.close()
+    with open(f"bigg_log_{fasta_id}.txt", "w") as f:
+        for single_bigg in bigg_nonredundant:
+            print(single_bigg, file=f)
     print("COMPLETE BiGG logging "+fasta_id) #debug
 
 def log_modelseed_nr(modelseed_nonredundant, fasta_id, gapfill_report_directory):
@@ -2239,10 +2208,9 @@ def log_modelseed_nr(modelseed_nonredundant, fasta_id, gapfill_report_directory)
         gapfill_report_directory    (str): output folder path
     """
     os.chdir(gapfill_report_directory)
-    f = open("seed_log_"+fasta_id+".txt", "w")
-    for single_rxn in modelseed_nonredundant:
-        f.write(single_rxn+"\n")
-    f.close()
+    with open(f"seed_log_{fasta_id}.txt", "w") as f:
+        for single_rxn in modelseed_nonredundant:
+            print(single_rxn, file=f)
     print("COMPLETE ModelSEED logging "+fasta_id) #debug
 
 def reframed_reaction_addition(fasta_id, model_directory, gapfill_report_directory, bigg_api, verbose = False):
@@ -2328,15 +2296,14 @@ def reframed_reaction_addition(fasta_id, model_directory, gapfill_report_directo
 
     # Task:  saves a LOGfile with the reactions ACTUALLY ADDED to the model
             os.chdir(gapfill_report_directory)
-            f = open(""+model.id+"_added_reactions.txt", "w")
-            for reac in added_reacs:
-                f.write(reac+"\n")
-            f.close()
+            with open(f"{model.id}_added_reactions.txt", "w") as f:
+                for reac in added_reacs:
+                    print(reac, file=f)
 
     # Task:  checks namespace quality for metabolites and saves the new gap-filled model
             if verbose:
-                metab_change_names(model_new, verbose = verbose)
-                reac_change_names(model_new, verbose = verbose)
+                metab_change_names(model_new, verbose=verbose)
+                reac_change_names(model_new, verbose=verbose)
                 check_name_changes(model_new)
 
             os.chdir(gapfilled_model_directory)
@@ -2356,30 +2323,27 @@ def recap_addition(fasta_id, gapfill_report_directory, old_new_names_R):
     datetoday = str(datetime.datetime.now())[:10]
 
     os.chdir(gapfill_report_directory)
-    f = open("recap_gapfill_"+datetoday+".tsv", "a")
-    header = "MAG\tSTRING\tNAME\n"
-    if f.tell() == 0:
-        f.write(header)
+    with open(f"recap_gapfill_{datetoday}.tsv", "a") as f:
+        if f.tell() == 0: # Really like this use of tell!
+            print("MAG", "STRING", "NAME", sep="\t, file=f)
 
-    for file in sorted(os.listdir()):
-        if file.endswith("_added_reactions.txt") and fasta_id in file:
-            with open(file) as g:
-                MAG = file[:-20]
-                for line in g.readlines():
-                    STRING = line.strip()
-                    reac_id = STRING.split(": ")[0].replace("R_", "")
-                    NAME = old_new_names_R[reac_id]
-                    if not STRING == "":
+        for file in sorted(os.listdir()):
+            if file.endswith("_added_reactions.txt") and fasta_id in file:
+                with open(file) as g:
+                    MAG = file[:-20]
+                    for line in g:
+                        STRING = line.strip()
+                        if STRING == "":
+                            continue
+                        reac_id = STRING.split(": ")[0].replace("R_", "")
+                        NAME = old_new_names_R[reac_id]
                         f.write(MAG+"\t"+STRING+"\t"+NAME+"\n")
-    f.close()
+
 
 ########################################################################################
 def main():
-    import os
-    import argparse
-    from datetime import datetime
 
-    run_start = str(datetime.now().strftime("%Y-%m-%d"))
+    run_start = datetime.now().strftime("%Y-%m-%d")
 
     ###############
     # directories #
@@ -2512,15 +2476,15 @@ def main():
         if file.startswith(file_name):
             if args.annotation_format == "kaas":
                 if args.verbose:
-                    print("converting kaas-like file "+file)
+                    print(f"converting kaas-like file {file}")
                 ktest, KOs = KAASXktest(file, file.rsplit(".",1)[0]+".ktest", KAnnotation_directory, ktests_directory)
             elif args.annotation_format == "eggnog":
                 if args.verbose:
-                    print("converting eggnog file "+file)
+                    print(f"converting eggnog file {file}")
                 ktest, KOs = eggnogXktest(file, file.rsplit(".",2)[0]+".ktest", KAnnotation_directory, ktests_directory)
             elif args.annotation_format == "kofamkoala":
                 if args.verbose:
-                    print("converting kofamkoala file "+file)
+                    print(f"converting kofamkoala file {file}")
                 ktest, KOs = kofamXktest(file, file.rsplit(".",1)[0]+".ktest", KAnnotation_directory, ktests_directory)
             else:
                 raise('''
@@ -2535,7 +2499,7 @@ def main():
             if file.endswith(".kk"):
                 testcompleteness(ko_list, file, kkfiles_directory, report_txt_directory, "reportKMC_"+ktest[:-6]+".txt")
                 if args.as_kegg:
-                    testcompleteness_tsv(ko_list, file, kkfiles_directory, report_tsv_directory, "reportKMC_"+ktest[:-6]+".tsv", as_kegg = True)
+                    testcompleteness_tsv(ko_list, file, kkfiles_directory, report_tsv_directory, "reportKMC_"+ktest[:-6]+".tsv", as_kegg=pTrue)
                 else:
                     testcompleteness_tsv(ko_list, file, kkfiles_directory, report_tsv_directory, "reportKMC_"+ktest[:-6]+".tsv")
         if LOGflag:
@@ -2553,9 +2517,9 @@ def main():
         base_com_hmmbuild = base_com_hmmbuild.replace(" > /dev/null","")
         base_com_nhmmer = base_com_nhmmer.replace(" > /dev/null","")
     if args.quiet:
-        base_com_mafft = base_com_mafft+" 2>/dev/null"
-        base_com_hmmbuild = base_com_hmmbuild+" 2>&1"
-        base_com_nhmmer = base_com_nhmmer+" 2>&1"
+        base_com_mafft += " 2>/dev/null"
+        base_com_hmmbuild += " 2>&1"
+        base_com_nhmmer += " 2>&1"
 
 #### HMM - READ AND WRITE INSTRUCTIONS
     os.chdir(dir_base)
@@ -2590,15 +2554,15 @@ def main():
                 CORR_THRESHOLD = float(args.threshold_value)
 
 #### HMM - OPERATE SINGLE FUNCTIONS
-                print(_timeinfo()+"+++START HMM operations "+fasta_id)
+                print(_timeinfo(), f"+++START HMM operations {fasta_id}", sep="\t")
                 if LOGflag:
-                    logging.info('+++START HMM operations '+fasta_id)
+                    logging.info(f'+++START HMM operations {fasta_id}')
                 if args.update_taxonomy_codes:
-                    taxa_allow = taxonomy_filter(taxonomy, dir_base, taxa_file, taxa_dir, update = True)
+                    taxa_allow = taxonomy_filter(taxonomy, dir_base, taxa_file, taxa_dir, update=True)
                 else:
                     os.chdir(taxa_dir)
                     if not taxa_file in os.listdir():
-                        taxa_allow = taxonomy_filter(taxonomy, dir_base, taxa_file, taxa_dir, update = True)
+                        taxa_allow = taxonomy_filter(taxonomy, dir_base, taxa_file, taxa_dir, update=True)
                     else:
                         taxa_allow = taxonomy_filter(taxonomy, dir_base, taxa_file, taxa_dir)
 
@@ -2613,10 +2577,10 @@ def main():
                     movebackHMM(hmm_dir_comm, msa_dir_comm)
                 if not args.skip_msa_and_hmmbuild:
                     if LOGflag:
-                        logging.info('START sequences filtering and allignment')
-                    filter_and_allign(taxa_dir, taxa_file, fasta_id, klist_file, klists_directory, msa_dir, dir_KO)
+                        logging.info('START sequences filtering and alignment')
+                    filter_and_align(taxa_dir, taxa_file, fasta_id, klist_file, klists_directory, msa_dir, dir_KO)
                     if LOGflag:
-                        logging.info('COMPLETE Filter and allign')
+                        logging.info('COMPLETE Filter and align')
                     if LOGflag:
                         MSA_and_HMM(msa_dir_comm, base_com_mafft, base_com_hmmbuild, log=True)
                     else:
@@ -2627,7 +2591,7 @@ def main():
                 move_HMM_and_clean(hmm_dir_comm, msa_dir_comm)
 
 #### HMM - FIRST REPORT FILE
-                nhmmer_significant_hits_corr(fasta_id, hmm_dir_comm, corr_threshold = CORR_THRESHOLD)
+                nhmmer_significant_hits_corr(fasta_id, hmm_dir_comm, corr_threshold=CORR_THRESHOLD)
                 if LOGflag:
                     logging.info('COMPLETE nhmmer significant hits')
                 HMM_hits_dict = HMM_hits_sequences(hmm_hits_dir, dir_genomes)
@@ -2657,10 +2621,7 @@ def main():
                             current_run = "KEMET_run_"+run_start
 
                             if args.gsmm_mode == "denovo":
-                                if LOGflag:
-                                    build_de_novo_GSMM(FASTA, fasta_genome, de_novo_model_directory, current_run, log=True)
-                                else:
-                                    build_de_novo_GSMM(FASTA, fasta_genome, de_novo_model_directory, current_run, log=False)
+                                build_de_novo_GSMM(FASTA, fasta_genome, de_novo_model_directory, current_run, log=LOGflag)
 
                             elif args.gsmm_mode == "existing":
                                 list_all_mod = list_all_modules(Modules_directory)
@@ -2683,10 +2644,7 @@ def main():
 #### GSMM - REACTION ADDITION + RECAP
                                 bigg_nonredundant = bigg_nonredundant(KEGG_R_to_add, DB_KEGG_RN)
                                 log_bigg_nr(bigg_nonredundant, fasta_id, gapfill_report_directory)
-                                if args.verbose:
-                                    reframed_reaction_addition(fasta_id, model_directory, gapfill_report_directory, bigg_api, verbose = True)
-                                else:
-                                    reframed_reaction_addition(fasta_id, model_directory, gapfill_report_directory, bigg_api, verbose = False)
+                                reframed_reaction_addition(fasta_id, model_directory, gapfill_report_directory, bigg_api, verbose=args.verbose)
                                 recap_addition(fasta_id, gapfill_report_directory, old_new_names_R)
 
                 print(_timeinfo()+"END "+fasta_id+"\n")
