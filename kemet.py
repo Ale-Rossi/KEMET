@@ -1052,7 +1052,7 @@ def movebackHMM(hmm_dir_comm, msa_dir_comm):
                 os.replace(hmm_dir_comm+K+"/"+file, msa_dir_comm+K+"/"+file)
     print(_timeinfo(), "COMPLETE move back HMM", sep="\t")
 
-def nhmmer_significant_hits_corr(fasta_id, hmm_dir_comm, threshold= 100, corr_threshold= _def_thr, evalue_threshold = float(1e-30)):
+def nhmmer_significant_hits_corr(fasta_id, hmm_dir_comm, threshold=100, corr_threshold=_def_thr, evalue_threshold=float(1e-30)):
     """
     Stores the nhmmer-derived HMM hits in a dedicated ".txt" file.
     Detailed informations stored include the scoring, genomic context and
@@ -1518,7 +1518,7 @@ def knum4reac_mod(file):
 
     return dictionary_knumber_reac
 
-def KEGG_BiGG_SEED_RN_dict(reactions_DB, DB_directory, ontology = "BiGG"):
+def KEGG_BiGG_SEED_RN_dict(reactions_DB, DB_directory, ontology="BiGG"):
     """
     Connects KEGG RN to BiGG IDs or KEGG RN to ModelSEED IDs
     starting from a tabular data file which connects ModelSEED reactions
@@ -1870,7 +1870,7 @@ def retry_genes(file_txt, verbose=False):
     except:
         return
 
-def metab_change_names(model_new, verbose = False):
+def metab_change_names(model_new, verbose=False):
     """
     Helper function to find exact metabolites names
     and replacing the ones added via "get_string()".
@@ -2158,7 +2158,7 @@ def log_modelseed_nr(modelseed_nonredundant, fasta_id, gapfill_report_directory)
             print(single_rxn, file=f)
     print("COMPLETE ModelSEED logging "+fasta_id) #debug
 
-def reframed_reaction_addition(fasta_id, model_directory, gapfill_report_directory, bigg_api, verbose = False):
+def reframed_reaction_addition(fasta_id, model_directory, gapfill_report_directory, bigg_api, verbose=False):
     """
     Main function to add reactions linked to HMM-derived genomic evidence
     obtained from prior KEMET processes.
