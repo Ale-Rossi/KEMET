@@ -1721,7 +1721,7 @@ def api_file_reorder(file_ift, verbose=False):
     with open(file_ift) as f:
         for line in f:
         #text cleaning
-            text2 = line.replace(",", ",\n").replace(":",":\t").replace("&#8652;","<->")
+            text2 = line.replace(",", ",\n").replace(":", ":\t").replace("&#8652;", "<->")
             file_txt = str(file_ift).replace(".ift", ".txt")
             #files_txt.append(file_txt)
             with open(file_txt, "w") as g:
@@ -1747,7 +1747,7 @@ def api_file_reorder2(file_ift, verbose=False):
     with open(file_ift) as f:
         for line in f:
         #text cleaning
-            text2 = line.replace(",", ",\n").replace(":",":\t").replace("&#8652;","<->")
+            text2 = line.replace(",", ",\n").replace(":", ":\t").replace("&#8652;", "<->")
             file_txt = str(file_ift).replace(".ift", ".txt")
             with open(file_txt, "w") as g:
                 g.write(text2)
@@ -1758,7 +1758,7 @@ def api_file_reorder2(file_ift, verbose=False):
 
     return file_txt
 
-def get_string(file_txt, total_strings, verbose False, remove_intermediate=True):
+def get_string(file_txt, total_strings, verbose=False, remove_intermediate=True):
     """
     Helper function to extract reaction string and
     add to a reaction list in Reframed format.
@@ -1782,9 +1782,8 @@ def get_string(file_txt, total_strings, verbose False, remove_intermediate=True)
                 metabs = []
                 for el in st2:
                     if el not in forbidden and "." not in el:
-                        metabs.append("M_" + el)
-                    else:
-                        metabs.append(el)
+                        el = "M_" + el
+                    metabs.append(el)
 
     #add Reframed name
     with open(file_txt) as asd:
