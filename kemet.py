@@ -1744,7 +1744,11 @@ def api_file_reorder2(file_ift, verbose=False):
     with open(file_ift) as f:
         for line in f:
         #text cleaning
-            text2 = line.replace(",", ",\n").replace(":", ":\t").replace("&#8652;","<->")
+<<<<<<< HEAD
+            text2 = line.replace(",", ",\n").replace(":", ":\t").replace("&#8652;", "<->")
+=======
+            text2 = line.replace(",", ",\n").replace(":", ":\t").replace("&#8652;", "<->")
+>>>>>>> 331352db25ce89f0c558483f37a538ece912960a
             file_txt = str(file_ift).replace(".ift", ".txt")
             with open(file_txt, "w") as g:
                 g.write(text2)
@@ -1779,9 +1783,8 @@ def get_string(file_txt, total_strings, verbose=False, remove_intermediate=True)
                 metabs = []
                 for el in st2:
                     if el not in forbidden and "." not in el:
-                        metabs.append("M_" + el)
-                    else:
-                        metabs.append(el)
+                        el = "M_" + el
+                    metabs.append(el)
 
     #add Reframed name
     with open(file_txt) as asd:
