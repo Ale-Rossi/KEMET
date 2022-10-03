@@ -2126,16 +2126,8 @@ def Modules_KOhits_connection(KOhits, MODofinterest):
         for module in Modules:
             if module not in MODofinterest:
                 continue
-        # if KO is present in one of the modules of interest
-            if module not in MODofinterestXKOhits:
-                vett_KOmiss = []
-                vett_KOmiss.append(KO)
-                MODofinterestXKOhits.update({module:vett_KOmiss})
-        # if more than one KO is identified in the modules of interest
-            else:
-                vett_KOmiss = MODofinterestXKOhits[module]
-                vett_KOmiss.append(KO)
-                MODofinterestXKOhits.update({module:vett_KOmiss})
+            MODofinterestXKOhits.setdefault(module, [])
+            MODofinterestXKOhits[module].append(KO)
     return MODofinterestXKOhits
 
 def modules_flat_files_connection(list_all_mod, MODofinterestXKOhits):
@@ -2347,9 +2339,6 @@ def recap_addition(fasta_id, gapfill_report_directory, old_new_names_R):
 
 ########################################################################################
 if __name__ == "__main__":
-    import os
-    import argparse
-    from datetime import datetime
 
     run_start = str(datetime.now().strftime("%Y-%m-%d"))
 
