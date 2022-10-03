@@ -147,21 +147,17 @@ def kofamXktest(kofamkoala_file, converted_output, KAnnotation_directory, ktests
     with open(kofamkoala_file) as g:
         # look for fasta_id & KO info based on gene calling IDs lenght
         spacer = g.readlines()[1].strip()
-        fastaslice = spacer.index(" ",1)+1
-        koslice = spacer.index(" ",fastaslice)+1
+        fastaslice = spacer.index(" ", 1)+1
+        koslice = spacer.index(" ", fastaslice)+1
         g.seek(0)
         
         for line in g.readlines()[2:]: # skip header and spacer lines w/o genes
             fasta_id = line[:fastaslice].strip().replace("* ","")
             kofam_ko = line[fastaslice:koslice].strip()
             if kofam_ko != "":
-                if not kofam_ko in KOs:
-                    KOs[kofam_ko] = 1
-                else:
-                    KOs[kofam_ko] += 1
+                KOs.setdefault(kofam_ko, 0)
+                KOs[kofam_ko] += 1
 
-            else:
-                pass
     try:
         os.chdir(ktests_directory)
     except:
@@ -184,11 +180,8 @@ def create_KO_list(file_ko_list, ktests_directory):
         ko_list                (list): list of single KOs present in the input pre-annotation
     """
     os.chdir(ktests_directory)
-    ko_list = []
     with open(file_ko_list) as f:
-        for line in f.readlines():
-            line_s = line.strip()
-            ko_list.append(line_s)
+        ko_list = [ line.strip() for line in f ]
     return ko_list
 
 def testcompleteness(ko_list, kk_file, kkfiles_directory, report_txt_directory, file_output, cutoff = 0):
@@ -321,7 +314,6 @@ def testcompleteness(ko_list, kk_file, kkfiles_directory, report_txt_directory, 
                     missing += 1
                     control = str(linenumber)+"."+str(submodule)+"\t"+str(line)
                     report.append(control)
-                    pass
 
             elif len(complexes) == 0:
                 for element in ko_list:
@@ -337,7 +329,7 @@ def testcompleteness(ko_list, kk_file, kkfiles_directory, report_txt_directory, 
                         report.append(control)
                         pass
 
-            total = present+missing
+            total = present + missing
             percentage_round = round((present/(total))*100, 2)
 
         else:
@@ -481,7 +473,7 @@ def testcompleteness_tsv(ko_list, kk_file, kkfiles_directory, report_tsv_directo
 
         for KO in KOmodule:
             if KO in ko_list:
-                if not KO in Kpresent:
+                if KO not in Kpresent:
                     Kpresent.append(KO)
             else:
                 Kmissing.append(KO)
@@ -580,15 +572,6 @@ def testcompleteness_tsv(ko_list, kk_file, kkfiles_directory, report_tsv_directo
                     missing_blocks=str(present)+"__"+str(total)
                     percentage_round_tsv = round((present/(total))*100,2)
 
-        if not as_kegg:
-            if present == total:
-                completeness_tsv = "COMPLETE"
-            if present+2 < total:
-                completeness_tsv = "INCOMPLETE"
-            elif present+2 == total:
-                completeness_tsv = "2 BLOCKS MISSING"
-            elif present+1 == total:
-                completeness_tsv = "1 BLOCK MISSING"
         if as_kegg:
             if present == total:
                 completeness_tsv = "COMPLETE"
@@ -598,11 +581,20 @@ def testcompleteness_tsv(ko_list, kk_file, kkfiles_directory, report_tsv_directo
                 completeness_tsv = "2 BLOCKS MISSING"
             elif present+1 == total:
                 completeness_tsv = "1 BLOCK MISSING"
-
+        else:
+            if present == total:
+                completeness_tsv = "COMPLETE"
+            if present+2 < total:
+                completeness_tsv = "INCOMPLETE"
+            elif present+2 == total:
+                completeness_tsv = "2 BLOCKS MISSING"
+            elif present+1 == total:
+                completeness_tsv = "1 BLOCK MISSING"
+                
         report_tsv += [ completeness_tsv,
                         missing_blocks,
                         Kmissing,
-                        Kpresent]
+                        Kpresent ]
 
     # IO-files operations
     try:
